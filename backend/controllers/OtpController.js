@@ -79,7 +79,50 @@ const generateSecureOTP = () => {
     return otp.toString();
 };
 
-// Send OTP Function
+// Check if user exists
+exports.checkUser = async (req, res) => {
+    const { phoneNumber } = req.body;
+    
+    // Input validation
+    if (!phoneNumber) {
+        return res.status(400).json({ 
+            success: false,
+            error: "Phone number is required" 
+        });
+    }
+    
+    if (!isValidPhoneNumber(phoneNumber)) {
+        return res.status(400).json({ 
+            success: false,
+            error: "Invalid phone number format" 
+        });
+    }
+    
+    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+    
+    try {
+        const existingUser = await User.findOne({ phoneNumber: normalizedPhone });
+        
+        res.status(200).json({
+            success: true,
+            userExists: !!existingUser,
+            message: existingUser ? "Welcome back!" : "New user registration",
+            data: {
+                phoneNumber: normalizedPhone.replace(/(\+\d{1,3})\d{6}(\d{4})/, '$1******$2'), // Masked
+                username: existingUser ? existingUser.username : null
+            }
+        });
+        
+    } catch (err) {
+        console.error("Error checking user:", err);
+        res.status(500).json({ 
+            success: false,
+            error: "Service temporarily unavailable" 
+        });
+    }
+};
+
+// Send OTP Function (Modified)
 exports.sendOtp = async (req, res) => {
     const { phoneNumber } = req.body;
     
@@ -101,6 +144,9 @@ exports.sendOtp = async (req, res) => {
     const normalizedPhone = normalizePhoneNumber(phoneNumber);
     
     try {
+        // Check if user exists
+        const existingUser = await User.findOne({ phoneNumber: normalizedPhone });
+        
         // Check for recent OTP requests (prevent spam - 1 minute cooldown)
         const recentOtp = await Otp.findOne({ 
             phoneNumber: normalizedPhone,
@@ -136,7 +182,8 @@ exports.sendOtp = async (req, res) => {
         
         // Prepare SMS message
         const isIndianNumber = normalizedPhone.startsWith('+91');
-        const smsMessage = `Your Connect verification code is: ${otpCode}\n\nThis code expires in 5 minutes. Do not share this code with anyone.\n\nIf you didn't request this, please ignore this message.`;
+        const welcomeText = existingUser ? "Welcome back!" : "Welcome to Connect!";
+        const smsMessage = `${welcomeText} Your verification code is: ${otpCode}\n\nThis code expires in 5 minutes. Do not share this code with anyone.\n\nIf you didn't request this, please ignore this message.`;
         
         // Send SMS via Twilio
         const message = await twilioClient.messages.create({
@@ -151,10 +198,12 @@ exports.sendOtp = async (req, res) => {
         res.status(200).json({ 
             success: true,
             message: "Verification code sent successfully",
+            userExists: !!existingUser,
             data: {
                 phoneNumber: normalizedPhone.replace(/(\+\d{1,3})\d{6}(\d{4})/, '$1******$2'), // Masked
                 expiresIn: "5 minutes",
-                country: isIndianNumber ? 'IN' : 'Other'
+                country: isIndianNumber ? 'IN' : 'Other',
+                welcomeMessage: existingUser ? "Welcome back!" : "New user registration"
             }
         });
         
@@ -191,7 +240,6 @@ exports.sendOtp = async (req, res) => {
         
         // Handle MongoDB errors
         if (err.code === 11000) {
-            // This shouldn't happen now that we delete existing OTPs first
             console.error("Unexpected duplicate key error:", err);
             return res.status(500).json({ 
                 success: false,
@@ -207,9 +255,9 @@ exports.sendOtp = async (req, res) => {
     }
 };
 
-// Verify OTP Function
+// Verify OTP Function (Modified)
 exports.verifyOtp = async (req, res) => {
-    const { username,phoneNumber, otp } = req.body;
+    const { username, phoneNumber, otp } = req.body;
     
     // Input validation
     if (!phoneNumber || !otp) {
@@ -252,8 +300,7 @@ exports.verifyOtp = async (req, res) => {
             });
         }
         
-        // Check if OTP is expired (it should auto-expire after 5 minutes due to schema TTL)
-        // But let's add an extra check for safety
+        // Check if OTP is expired
         const otpAge = Date.now() - otpRecord.createdAt.getTime();
         const fiveMinutesInMs = 5 * 60 * 1000;
         
@@ -270,19 +317,26 @@ exports.verifyOtp = async (req, res) => {
         
         // Check if user already exists
         let user = await User.findOne({ phoneNumber: normalizedPhone });
+        let isNewUser = false;
         
         if (!user) {
-            // Create new user
-        
+            // Create new user - username is required for new users
+            if (!username || username.trim() === '') {
+                return res.status(400).json({ 
+                    success: false,
+                    message: "Username is required for new user registration" 
+                });
+            }
             
             user = await User.create({
                 phoneNumber: normalizedPhone,
-                username,
+                username: username.trim(),
                 isVerified: true,
                 createdAt: new Date(),
                 lastLogin: new Date()
             });
             
+            isNewUser = true;
             console.log("New user created:", normalizedPhone);
         } else {
             // Update existing user
@@ -306,7 +360,7 @@ exports.verifyOtp = async (req, res) => {
             tokenPayload,
             process.env.JWT_SECRET,
             { 
-                expiresIn: "7d", // 7 days token validity
+                expiresIn: "7d",
                 issuer: "connect-app",
                 audience: "connect-users"
             }
@@ -315,7 +369,8 @@ exports.verifyOtp = async (req, res) => {
         // Return success response
         res.status(200).json({
             success: true,
-            message: "Login successful",
+            message: isNewUser ? "Registration successful" : "Login successful",
+            isNewUser,
             data: {
                 token,
                 user: {
@@ -353,5 +408,6 @@ exports.cleanupExpiredOtps = async () => {
         console.error("Error cleaning up expired OTPs:", err);
     }
 };
+
 // Export rate limiting middleware
-exports.otpRateLimit = otpRateLimit;    
+exports.otpRateLimit = otpRateLimit;
