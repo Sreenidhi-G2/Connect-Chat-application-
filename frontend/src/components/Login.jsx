@@ -12,7 +12,7 @@ const Login = ({ onLoginSuccess }) => {
   const [userExists, setUserExists] = useState(false);
   const [welcomeMessage, setWelcomeMessage] = useState('');
 
-  const API_BASE = useMemo(() => 'http://localhost:5000/api', []);
+  const API_BASE = useMemo(() => 'https://connect-chat-application.onrender.com/api', []);
 
   const handleSendOtp = useCallback(async () => {
     if (!mobileNumber || mobileNumber.length < 10) {

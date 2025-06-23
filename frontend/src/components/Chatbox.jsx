@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import io from 'socket.io-client';
 import { 
   ArrowLeft, 
   Send, 
@@ -19,10 +20,15 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const socketRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const messageIdsRef = useRef(new Set()); // Track message IDs to prevent duplicates
 
-  const API_BASE = 'http://localhost:5000/api';
+  const API_BASE = 'https://connect-chat-application.onrender.com/api';
+  const SOCKET_URL = 'https://connect-chat-application.onrender.com';
 
   // Early return if selectedUser is not available
   if (!selectedUser || !currentUser) {
@@ -46,9 +52,173 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
     );
   }
 
+  // Helper function to get user identifier
+  const getUserId = (user) => {
+    return user.id || user._id || user.phoneNumber || user.username;
+  };
+
+  // Helper function to generate unique message ID
+  const generateMessageId = (message) => {
+    const { from, to, message: text, time } = message;
+    return `${from}_${to}_${text}_${new Date(time).getTime()}`;
+  };
+
+  // Helper function to check if message is duplicate
+  const isDuplicateMessage = (newMessage, existingMessages) => {
+    const newId = newMessage._id || newMessage.messageId || generateMessageId(newMessage);
+    
+    // Check against our tracking set
+    if (messageIdsRef.current.has(newId)) {
+      return true;
+    }
+
+    // Check against existing messages with multiple criteria
+    return existingMessages.some(msg => {
+      const existingId = msg._id || msg.messageId || generateMessageId(msg);
+      
+      // Same ID
+      if (existingId === newId) return true;
+      
+      // Same content, sender, and close timestamp (within 2 seconds)
+      const timeDiff = Math.abs(new Date(msg.time) - new Date(newMessage.time));
+      return (
+        msg.from === newMessage.from &&
+        msg.to === newMessage.to &&
+        msg.message === newMessage.message &&
+        timeDiff < 2000
+      );
+    });
+  };
+
+  // Initialize Socket.IO connection
   useEffect(() => {
     if (currentUser && selectedUser) {
+      console.log('🔌 Initializing socket connection...');
+      
+      // Clear message tracking when changing users
+      messageIdsRef.current.clear();
+      
+      socketRef.current = io(SOCKET_URL, {
+        transports: ['websocket', 'polling'],
+        upgrade: true,
+        rememberUpgrade: true,
+        timeout: 20000,
+        forceNew: true
+      });
+
+      const socket = socketRef.current;
+      const currentUserId = getUserId(currentUser);
+      const selectedUserId = getUserId(selectedUser);
+
+      // Connection handlers
+      socket.on('connect', () => {
+        console.log('Connected to server with socket ID:', socket.id);
+        setIsConnected(true);
+        setError('');
+        
+        // Announce user is online
+        socket.emit('user_online', currentUserId);
+        
+        // Join the chat room
+        socket.emit('join_room', { 
+          user1: currentUserId, 
+          user2: selectedUserId 
+        });
+        
+        console.log('🏠 Joined room between', currentUserId, 'and', selectedUserId);
+      });
+
+      socket.on('disconnect', () => {
+        console.log('❌ Disconnected from server');
+        setIsConnected(false);
+      });
+
+      socket.on('connect_error', (error) => {
+        console.error('🔴 Connection error:', error);
+        setError('Connection failed. Retrying...');
+        setIsConnected(false);
+      });
+
+      // Message handlers - IMPROVED DUPLICATE PREVENTION
+      socket.on('receive_message', (data) => {
+        console.log('📨 Received message:', data);
+        
+        setMessages(prev => {
+          // Check for duplicates using improved logic
+          if (isDuplicateMessage(data, prev)) {
+            console.log('📋 Message already exists, skipping duplicate');
+            return prev;
+          }
+          
+          const messageId = data._id || data.messageId || generateMessageId(data);
+          const newMessage = { 
+            ...data, 
+            _id: messageId,
+            status: 'delivered' 
+          };
+          
+          // Add to tracking set
+          messageIdsRef.current.add(messageId);
+          
+          return [...prev, newMessage];
+        });
+      });
+
+      // Typing indicators
+      socket.on('user_typing', ({ from, isTyping: typing }) => {
+        if (from === selectedUserId) {
+          setIsTyping(typing);
+          if (typing) {
+            // Clear typing after 3 seconds
+            setTimeout(() => setIsTyping(false), 3000);
+          }
+        }
+      });
+
+      // Message status updates
+      socket.on('message_saved', ({ messageId, success, error: saveError }) => {
+        if (success) {
+          setMessages(prev => 
+            prev.map(msg => 
+              (msg._id === messageId || msg.messageId === messageId)
+                ? { ...msg, status: 'sent' }
+                : msg
+            )
+          );
+        } else {
+          console.error('❌ Message save failed:', saveError);
+          setMessages(prev => 
+            prev.map(msg => 
+              (msg._id === messageId || msg.messageId === messageId)
+                ? { ...msg, status: 'failed' }
+                : msg
+            )
+          );
+        }
+      });
+
+      // User status updates
+      socket.on('user_status', ({ userId, status }) => {
+        console.log(`👤 User ${userId} is now ${status}`);
+      });
+
+      // Debug handlers
+      socket.on('debug_room_response', (info) => {
+        console.log('🔍 Room debug info:', info);
+      });
+
+      // Fetch initial messages
       fetchMessages();
+
+      // Cleanup function
+      return () => {
+        console.log('🧹 Cleaning up socket connection');
+        if (socket) {
+          socket.disconnect();
+        }
+        // Clear message tracking
+        messageIdsRef.current.clear();
+      };
     }
   }, [currentUser, selectedUser]);
 
@@ -60,106 +230,119 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Helper function to get user identifier
-  const getUserId = (user) => {
-    return user.id || user._id || user.phoneNumber || user.username;
-  };
-
   const fetchMessages = async () => {
     try {
       setLoading(true);
-      setError(''); // Clear previous errors
+      setError('');
       
       const currentUserId = getUserId(currentUser);
       const selectedUserId = getUserId(selectedUser);
       
-      console.log('Fetching messages between:', currentUserId, 'and', selectedUserId);
+      console.log('📥 Fetching messages between:', currentUserId, 'and', selectedUserId);
       
       const response = await fetch(`${API_BASE}/messages/${currentUserId}/${selectedUserId}`);
       const data = await response.json();
 
       if (response.ok) {
-        // Backend returns messages array directly, not wrapped in an object
-        setMessages(Array.isArray(data) ? data : []);
+        const messagesArray = Array.isArray(data) ? data : [];
+        
+        // Clear and rebuild message tracking
+        messageIdsRef.current.clear();
+        messagesArray.forEach(msg => {
+          const id = msg._id || msg.messageId || generateMessageId(msg);
+          messageIdsRef.current.add(id);
+        });
+        
+        setMessages(messagesArray);
+        console.log('📥 Fetched', messagesArray.length, 'messages');
       } else {
         setError(data.error || 'Failed to fetch messages');
-        console.error('Fetch error:', data);
+        console.error('❌ Fetch error:', data);
       }
     } catch (err) {
       setError('Network error while fetching messages');
-      console.error('Network error:', err);
+      console.error('❌ Network error:', err);
     } finally {
       setLoading(false);
     }
   };
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !socketRef.current) return;
 
     const currentUserId = getUserId(currentUser);
     const selectedUserId = getUserId(selectedUser);
+    const messageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
-    // Match the backend API exactly - use 'time' not 'timestamp'
     const messageData = {
       from: currentUserId,
       to: selectedUserId,
       message: newMessage.trim(),
-      time: new Date().toISOString(), // Backend expects 'time' field
+      time: new Date().toISOString(),
+      messageId
     };
+
+    console.log('📤 Sending message:', messageData);
 
     // Optimistically add message to UI
     const tempMessage = {
       ...messageData,
-      _id: 'temp_' + Date.now(), // Use _id to match backend response
+      _id: messageId,
       status: 'sending'
     };
     
+    // Add to tracking set to prevent duplicates
+    messageIdsRef.current.add(messageId);
+    
     setMessages(prev => [...prev, tempMessage]);
     setNewMessage('');
-    setError(''); // Clear previous errors
+    setError('');
 
-    try {
-      const response = await fetch(`${API_BASE}/messages/send`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(messageData),
-      });
+    // Send via Socket.IO (real-time) - ONLY use socket, not both
+    socketRef.current.emit('send_message', messageData);
 
-      const responseData = await response.json();
-
-      if (response.ok) {
-        // Replace temp message with actual message from server
-        setMessages(prev => 
-          prev.map(msg => 
-            msg._id === tempMessage._id 
-              ? { ...responseData, status: 'sent' }
-              : msg
-          )
-        );
-      } else {
-        // Update message status to failed
-        setMessages(prev => 
-          prev.map(msg => 
-            msg._id === tempMessage._id 
-              ? { ...msg, status: 'failed' }
-              : msg
-          )
-        );
-        setError(responseData.error || 'Failed to send message');
-        console.error('Send error:', responseData);
-      }
-    } catch (err) {
+    // Remove the REST API backup call to prevent duplicates
+    // The socket.io should handle the message sending
+    
+    // Update status after a short delay if no response
+    setTimeout(() => {
       setMessages(prev => 
         prev.map(msg => 
-          msg._id === tempMessage._id 
-            ? { ...msg, status: 'failed' }
+          msg._id === messageId && msg.status === 'sending'
+            ? { ...msg, status: 'sent' }
             : msg
         )
       );
-      setError('Network error while sending message');
-      console.error('Network error:', err);
+    }, 1000);
+  };
+
+  const handleTyping = (e) => {
+    setNewMessage(e.target.value);
+    
+    if (socketRef.current) {
+      const currentUserId = getUserId(currentUser);
+      const selectedUserId = getUserId(selectedUser);
+      
+      // Send typing indicator
+      socketRef.current.emit('typing', {
+        from: currentUserId,
+        to: selectedUserId,
+        isTyping: true
+      });
+      
+      // Clear previous timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      
+      // Stop typing indicator after 2 seconds
+      typingTimeoutRef.current = setTimeout(() => {
+        socketRef.current.emit('typing', {
+          from: currentUserId,
+          to: selectedUserId,
+          isTyping: false
+        });
+      }, 2000);
     }
   };
 
@@ -167,6 +350,19 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  // Debug function
+  const debugRoom = () => {
+    if (socketRef.current) {
+      const currentUserId = getUserId(currentUser);
+      const selectedUserId = getUserId(selectedUser);
+      
+      socketRef.current.emit('debug_room_info', {
+        user1: currentUserId,
+        user2: selectedUserId
+      });
     }
   };
 
@@ -178,23 +374,19 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
   const getInitials = (user) => {
     if (!user) return '??';
     
-    // Try to get name first
     if (user.name && typeof user.name === 'string') {
       return user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     }
     
-    // Try username
     if (user.username && typeof user.username === 'string') {
       return user.username.substring(0, 2).toUpperCase();
     }
     
-    // Try phoneNumber (note: using phoneNumber not mobileNumber)
     const phone = user.phoneNumber || user.mobileNumber;
     if (phone && typeof phone === 'string') {
       return phone.slice(-2);
     }
     
-    // Final fallback
     return '??';
   };
 
@@ -205,7 +397,6 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
 
   const getDisplayPhone = (user) => {
     if (!user) return '';
-    // Use phoneNumber from your backend structure
     return user.phoneNumber || user.mobileNumber || '';
   };
 
@@ -231,6 +422,17 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex flex-col">
+      {/* Connection Status */}
+      {!isConnected && (
+        <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2">
+          <div className="max-w-4xl mx-auto text-center">
+            <span className="text-yellow-800 text-sm">
+              🔄 Connecting to real-time chat...
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Chat Header */}
       <div className="bg-white/90 backdrop-blur-sm shadow-lg border-b border-white/20 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4">
@@ -244,10 +446,14 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
               </button>
               
               <div className="flex items-center">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mr-3 shadow-lg">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mr-3 shadow-lg relative">
                   <span className="text-white font-bold text-sm">
                     {getInitials(selectedUser)}
                   </span>
+                  {/* Connection indicator */}
+                  <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
+                    isConnected ? 'bg-green-500' : 'bg-gray-400'
+                  }`}></div>
                 </div>
                 <div>
                   <h2 className="font-semibold text-gray-800 text-lg">
@@ -256,20 +462,21 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
                   <div className="flex items-center text-sm text-gray-500">
                     <Phone className="w-3 h-3 mr-1" />
                     <span>{getDisplayPhone(selectedUser)}</span>
+                    {isConnected && (
+                      <span className="ml-2 text-green-600">• Online</span>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="flex items-center space-x-2">
-              <button className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200">
-    
-              </button>
-              <button className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200">
-              
-              </button>
-              <button className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200">
-              
+              <button 
+                onClick={debugRoom}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200 text-gray-500"
+                title="Debug Room Info"
+              >
+                <MoreVertical className="w-5 h-5" />
               </button>
             </div>
           </div>
@@ -368,7 +575,7 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center space-x-3">
             <button className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200">
-             
+              <Paperclip className="w-5 h-5 text-gray-500" />
             </button>
             
             <div className="flex-1 relative">
@@ -376,20 +583,20 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
                 ref={inputRef}
                 type="text"
                 value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
+                onChange={handleTyping}
                 onKeyPress={handleKeyPress}
-                placeholder="Type a message..."
+                placeholder={isConnected ? "Type a message..." : "Connecting..."}
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 pr-12"
-                disabled={loading}
+                disabled={loading || !isConnected}
               />
               <button className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full transition-colors duration-200">
-                
+                <Smile className="w-5 h-5 text-gray-400" />
               </button>
             </div>
             
             <button
               onClick={handleSendMessage}
-              disabled={!newMessage.trim() || loading}
+              disabled={!newMessage.trim() || loading || !isConnected}
               className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
             >
               <Send className="w-5 h-5" />
