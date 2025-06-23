@@ -263,13 +263,13 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
 
             <div className="flex items-center space-x-2">
               <button className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200">
-                <Phone className="w-5 h-5 text-gray-600" />
+    
               </button>
               <button className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200">
-                <Video className="w-5 h-5 text-gray-600" />
+              
               </button>
               <button className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200">
-                <MoreVertical className="w-5 h-5 text-gray-600" />
+              
               </button>
             </div>
           </div>
@@ -368,7 +368,7 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center space-x-3">
             <button className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200">
-              <Paperclip className="w-5 h-5 text-gray-600" />
+             
             </button>
             
             <div className="flex-1 relative">
@@ -383,7 +383,7 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
                 disabled={loading}
               />
               <button className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full transition-colors duration-200">
-                <Smile className="w-5 h-5 text-gray-600" />
+                
               </button>
             </div>
             

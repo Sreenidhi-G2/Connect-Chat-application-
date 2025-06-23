@@ -41,19 +41,40 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE}/allusers`);
-      const data = await response.json();
+      setError('');
+      
+      console.log('Fetching users from:', `${API_BASE}/allusers`);
+      
+      const response = await fetch(`${API_BASE}/allusers`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-      if (response.ok) {
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+
+      const data = await response.json();
+      console.log('Response data:', data);
+
+      if (response.ok && data.success) {
         // Filter out current user from the list
-        const otherUsers = (data.users || []).filter(user => user.id !== currentUser?.id);
+        const otherUsers = (data.users || []).filter(user => 
+          user.id !== currentUser?.id && user._id !== currentUser?.id
+        );
+        console.log('Filtered users:', otherUsers);
         setUsers(otherUsers);
         setFilteredUsers(otherUsers);
       } else {
-        setError('Failed to fetch users. Please try again.');
+        // Handle different types of errors
+        const errorMessage = data.message || `HTTP ${response.status}: Failed to fetch users`;
+        console.error('API Error:', errorMessage);
+        setError(errorMessage);
       }
     } catch (err) {
-      setError('Network error. Please check your connection.');
+      console.error('Network error:', err);
+      setError(`Network error: ${err.message}. Please check your connection and server.`);
     } finally {
       setLoading(false);
     }
@@ -87,7 +108,8 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
       'from-teal-500 to-teal-600',
       'from-red-500 to-red-600',
     ];
-    return colors[userId % colors.length];
+    const id = userId || user._id || 0;
+    return colors[Math.abs(String(id).split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % colors.length];
   };
 
   const getDisplayName = (user) => {
@@ -95,11 +117,20 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
   };
 
   const getDisplayPhone = (user) => {
-    return user.phoneNumber || user.mobileNumber || 'No phone';
+    const phone = user.phoneNumber || user.mobileNumber || 'No phone';
+    // Mask phone number for privacy (show only last 4 digits)
+    if (phone.length > 4) {
+      return phone.replace(/(\+\d{1,3})\d*(\d{4})/, '$1******$2');
+    }
+    return phone;
   };
 
   const handleUserSelect = (user) => {
     onSelectUser(user);
+  };
+
+  const handleRetry = () => {
+    fetchUsers();
   };
 
   if (loading) {
@@ -108,6 +139,7 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
           <p className="text-gray-600 text-lg">Loading users...</p>
+          <p className="text-gray-500 text-sm mt-2">Fetching available contacts</p>
         </div>
       </div>
     );
@@ -160,6 +192,7 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search by name or phone number..."
               className="w-full pl-12 pr-4 py-4 bg-white/70 backdrop-blur-sm border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all duration-300 text-lg shadow-lg"
+              disabled={!!error}
             />
           </div>
         </div>
@@ -168,10 +201,18 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
         {error && (
           <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-6 mb-6 flex items-center justify-center">
             <AlertCircle className="w-6 h-6 text-red-500 mr-3" />
-            <span className="text-red-700 font-medium">{error}</span>
+            <div className="flex-1">
+              <span className="text-red-700 font-medium block">{error}</span>
+              {error.includes('Session expired') && (
+                <span className="text-red-600 text-sm mt-1 block">
+                  Redirecting to login...
+                </span>
+              )}
+            </div>
             <button
-              onClick={fetchUsers}
+              onClick={handleRetry}
               className="ml-4 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
+              disabled={error.includes('Session expired')}
             >
               Retry
             </button>
@@ -195,12 +236,12 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredUsers.map((user) => (
               <div
-                key={user.id}
+                key={user.id || user._id}
                 onClick={() => handleUserSelect(user)}
                 className="group bg-white/70 backdrop-blur-sm rounded-2xl p-6 hover:bg-white hover:shadow-2xl transition-all duration-300 cursor-pointer transform hover:scale-105 border border-white/20 hover:border-blue-200"
               >
                 <div className="text-center">
-                  <div className={`w-16 h-16 bg-gradient-to-br ${getAvatarColor(user.id)} rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:shadow-xl transition-all duration-300`}>
+                  <div className={`w-16 h-16 bg-gradient-to-br ${getAvatarColor(user.id || user._id)} rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:shadow-xl transition-all duration-300`}>
                     <span className="text-white font-bold text-lg">
                       {getInitials(user)}
                     </span>

@@ -12,4 +12,4 @@ router.post('/send-otp', otpRateLimit, sendOtp);
 // Verify OTP
 router.post('/login', verifyOtp);
 
-module.exports = router;
+module.exports = router;    

@@ -4,33 +4,11 @@ const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 
 // Get all users except the current logged-in user
+// Temporary version without authentication
 exports.getAllUsers = async (req, res) => {
     try {
-        // Extract user ID from the JWT token
-        const token = req.headers.authorization?.replace('Bearer ', '');
-        
-        if (!token) {
-            return res.status(401).json({ 
-                success: false,
-                message: "Authentication token required" 
-            });
-        }
-
-        let currentUserId;
-        try {
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            currentUserId = decoded.userId;
-        } catch (err) {
-            return res.status(401).json({ 
-                success: false,
-                message: "Invalid authentication token" 
-            });
-        }
-
-        // Find all users except the current user
-        const allUsers = await User.find({ 
-            _id: { $ne: currentUserId } 
-        }).select('_id username phoneNumber createdAt lastLogin isVerified');
+        // For now, just get all users (we'll add auth back later)
+        const allUsers = await User.find({}).select('_id username phoneNumber createdAt lastLogin isVerified');
 
         res.status(200).json({ 
             success: true,
