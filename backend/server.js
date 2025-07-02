@@ -5,6 +5,7 @@ const { Server } = require("socket.io");
 const connectDB = require("./config/db");
 const messageRoutes = require("./routes/Messageroutes");  
 const initSocket = require("./Socket/index");
+const authRoutes = require('./routes/Signinroutes');
 
 require("dotenv").config();
 const app = express();
@@ -12,11 +13,10 @@ app.use(cors());
 connectDB();
 
 
-const otpRoutes = require("./routes/Otproutes"); // ✅ Fix import
 const userRoutes = require("./routes/UserRoutes");
 app.use(express.json());
 app.use("/api/messages", messageRoutes);
-app.use("/api", otpRoutes);            // For OTP auth
+app.use("/api", authRoutes);            // For OTP auth
 app.use("/api", userRoutes); 
 
 

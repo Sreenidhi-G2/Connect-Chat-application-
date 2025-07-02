@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Sparkles
 } from 'lucide-react';
+import axios from 'axios';
 
 const UserList = ({ currentUser, onSelectUser, onLogout }) => {
   const [users, setUsers] = useState([]);
@@ -18,7 +19,17 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const API_BASE = 'https://connect-chat-application.onrender.com/api';
+  const API_BASE = 'http://localhost:5000/api';
+
+  // Configure axios instance
+  const api = axios.create({
+    baseURL: API_BASE,
+    timeout: 30000, // 30 seconds timeout
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+    },
+  });
 
   useEffect(() => {
     fetchUsers();
@@ -45,22 +56,14 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
       
       console.log('Fetching users from:', `${API_BASE}/allusers`);
       
-      const response = await fetch(`${API_BASE}/allusers`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
+      const response = await api.get('/allusers');
+      
       console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
+      console.log('Response data:', response.data);
 
-      const data = await response.json();
-      console.log('Response data:', data);
-
-      if (response.ok && data.success) {
+      if (response.data.success) {
         // Filter out current user from the list
-        const otherUsers = (data.users || []).filter(user => 
+        const otherUsers = (response.data.users || []).filter(user => 
           user.id !== currentUser?.id && user._id !== currentUser?.id
         );
         console.log('Filtered users:', otherUsers);
@@ -68,32 +71,41 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
         setFilteredUsers(otherUsers);
       } else {
         // Handle different types of errors
-        const errorMessage = data.message || `HTTP ${response.status}: Failed to fetch users`;
+        const errorMessage = response.data.message || `Failed to fetch users`;
         console.error('API Error:', errorMessage);
         setError(errorMessage);
       }
     } catch (err) {
-      console.error('Network error:', err);
-      setError(`Network error: ${err.message}. Please check your connection and server.`);
+      console.error('API Error:', err);
+      if (err.response) {
+        // Server responded with error status
+        const errorMessage = err.response.data?.message || 
+                            `HTTP ${err.response.status}: Failed to fetch users`;
+        setError(errorMessage);
+      } else if (err.request) {
+        // Network error
+        setError(`Network error: ${err.message}. Please check your connection and server.`);
+      } else {
+        // Other error
+        setError(`Error: ${err.message}`);
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  // All other functions remain exactly the same
   const getInitials = (user) => {
-    // Try to get name from different possible fields
     const name = user.name || user.username;
     if (name && typeof name === 'string') {
       return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     }
     
-    // Fallback to phone number - check both possible field names
     const phone = user.phoneNumber || user.mobileNumber;
     if (phone && typeof phone === 'string') {
       return phone.slice(-2);
     }
     
-    // Final fallback
     return '??';
   };
 
@@ -118,7 +130,6 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
 
   const getDisplayPhone = (user) => {
     const phone = user.phoneNumber || user.mobileNumber || 'No phone';
-    // Mask phone number for privacy (show only last 4 digits)
     if (phone.length > 4) {
       return phone.replace(/(\+\d{1,3})\d*(\d{4})/, '$1******$2');
     }
@@ -145,6 +156,7 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
     );
   }
 
+  // The rest of the component remains exactly the same
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Header */}
@@ -281,4 +293,4 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
   );
 };
 
-export default UserList;
+export default UserList;  
