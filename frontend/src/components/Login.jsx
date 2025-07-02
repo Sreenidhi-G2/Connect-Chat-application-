@@ -51,7 +51,7 @@ const Login = ({ onLoginSuccess }) => {
 
     try {
       // Send the Google ID token to your backend
-      const backendResponse = await fetch('http://localhost:5000/api/google-signin', {
+      const backendResponse = await fetch('https://connect-chat-application.onrender.com/api/google-signin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

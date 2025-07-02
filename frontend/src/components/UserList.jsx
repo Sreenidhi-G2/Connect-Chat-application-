@@ -19,7 +19,7 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const API_BASE = 'http://localhost:5000/api';
+  const API_BASE = 'https://connect-chat-application.onrender.com/api';
 
   // Configure axios instance
   const api = axios.create({
