@@ -460,7 +460,7 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
                     {getDisplayName(selectedUser)}
                   </h2>
                   <div className="flex items-center text-sm text-gray-500">
-                    <Phone className="w-3 h-3 mr-1" />
+                    {/* <Phone className="w-3 h-3 mr-1" /> */}
                     <span>{getDisplayPhone(selectedUser)}</span>
                     {isConnected && (
                       <span className="ml-2 text-green-600">• Online</span>
@@ -476,7 +476,7 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200 text-gray-500"
                 title="Debug Room Info"
               >
-                <MoreVertical className="w-5 h-5" />
+                {/* <MoreVertical className="w-5 h-5" /> */}
               </button>
             </div>
           </div>
@@ -575,7 +575,7 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center space-x-3">
             <button className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200">
-              <Paperclip className="w-5 h-5 text-gray-500" />
+              {/* <Paperclip className="w-5 h-5 text-gray-500" /> */}
             </button>
             
             <div className="flex-1 relative">
@@ -590,7 +590,7 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
                 disabled={loading || !isConnected}
               />
               <button className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full transition-colors duration-200">
-                <Smile className="w-5 h-5 text-gray-400" />
+                {/* <Smile className="w-5 h-5 text-gray-400" /> */}
               </button>
             </div>
             
