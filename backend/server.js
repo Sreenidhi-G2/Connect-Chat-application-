@@ -9,21 +9,34 @@ const authRoutes = require('./routes/Signinroutes');
 
 require("dotenv").config();
 const app = express();
-app.use(cors());
+app.use((req, res, next) => {
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+  next();
+});
+app.use(cors({
+  origin: [
+    "http://localhost:5173",                 
+    "https://connect-chat-application-mu.vercel.app", 
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
+
 connectDB();
 
 
 const userRoutes = require("./routes/UserRoutes");
 app.use(express.json());
 app.use("/api/messages", messageRoutes);
-app.use("/api", authRoutes);            // For OTP auth
+app.use("/api", authRoutes);           
 app.use("/api", userRoutes); 
 
 
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: ["https://connect-chat-application-mu.vercel.app","http://localhost:5000"],
     methods: ["GET", "POST"],
   },
 });
