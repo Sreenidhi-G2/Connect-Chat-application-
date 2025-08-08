@@ -1,17 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
-import { 
-  ArrowLeft, 
-  Send, 
-  Smile, 
-  Paperclip, 
-  Phone, 
-  Video, 
-  MoreVertical,
+import {
+  ArrowLeft,
+  Send,
   Check,
   CheckCheck,
   Clock,
-  User
+  User,
+  Bell,
+  BellOff
 } from 'lucide-react';
 
 const ChatBox = ({ currentUser, selectedUser, onBack }) => {
@@ -24,11 +21,23 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const socketRef = useRef(null);
+  const [onlineUsers, setOnlineUsers] = useState([]);
   const typingTimeoutRef = useRef(null);
-  const messageIdsRef = useRef(new Set()); // Track message IDs to prevent duplicates
+  const messageIdsRef = useRef(new Set());
+  const [notifications, setNotifications] = useState([]);
+  const [notificationPermission, setNotificationPermission] = useState(Notification.permission);
 
-  const API_BASE = 'https://connect-chat-application.onrender.com/api';
-  const SOCKET_URL = 'https://connect-chat-application.onrender.com';
+  const API_BASE = 'http://localhost:5000/api';
+  const SOCKET_URL = 'http://localhost:5000/';
+
+  // Request notification permission on component mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().then(permission => {
+        setNotificationPermission(permission);
+      });
+    }
+  }, []);
 
   // Early return if selectedUser is not available
   if (!selectedUser || !currentUser) {
@@ -57,6 +66,8 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
     return user.id || user._id || user.phoneNumber || user.username;
   };
 
+  const isUserOnline = onlineUsers.includes(getUserId(selectedUser));
+
   // Helper function to generate unique message ID
   const generateMessageId = (message) => {
     const { from, to, message: text, time } = message;
@@ -66,7 +77,7 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
   // Helper function to check if message is duplicate
   const isDuplicateMessage = (newMessage, existingMessages) => {
     const newId = newMessage._id || newMessage.messageId || generateMessageId(newMessage);
-    
+
     // Check against our tracking set
     if (messageIdsRef.current.has(newId)) {
       return true;
@@ -75,10 +86,10 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
     // Check against existing messages with multiple criteria
     return existingMessages.some(msg => {
       const existingId = msg._id || msg.messageId || generateMessageId(msg);
-      
+
       // Same ID
       if (existingId === newId) return true;
-      
+
       // Same content, sender, and close timestamp (within 2 seconds)
       const timeDiff = Math.abs(new Date(msg.time) - new Date(newMessage.time));
       return (
@@ -90,14 +101,55 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
     });
   };
 
+  // Show browser notification
+  const showBrowserNotification = (title, body, icon = null) => {
+    if (notificationPermission === 'granted') {
+      const notification = new Notification(title, {
+        body,
+        icon: icon || '/favicon.ico',
+        badge: '/favicon.ico',
+        tag: 'chat-message',
+        requireInteraction: false,
+        silent: false
+      });
+
+      // Auto close after 5 seconds
+      setTimeout(() => notification.close(), 5000);
+
+      // Handle click to focus window
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+
+      return notification;
+    }
+    return null;
+  };
+
+  // Add in-app notification
+  const addInAppNotification = (notificationData) => {
+    const notification = {
+      id: Date.now(),
+      ...notificationData,
+      timestamp: new Date().toISOString()
+    };
+
+    setNotifications(prev => [notification, ...prev.slice(0, 4)]); // Keep only last 5
+
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== notification.id));
+    }, 5000);
+  };
+
   // Initialize Socket.IO connection
   useEffect(() => {
     if (currentUser && selectedUser) {
-      console.log('🔌 Initializing socket connection...');
-      
+
       // Clear message tracking when changing users
       messageIdsRef.current.clear();
-      
+
       socketRef.current = io(SOCKET_URL, {
         transports: ['websocket', 'polling'],
         upgrade: true,
@@ -112,24 +164,23 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
 
       // Connection handlers
       socket.on('connect', () => {
-        console.log('Connected to server with socket ID:', socket.id);
+        ('✅ Connected to server with socket ID:', socket.id);
         setIsConnected(true);
         setError('');
-        
+
         // Announce user is online
         socket.emit('user_online', currentUserId);
-        
+
         // Join the chat room
-        socket.emit('join_room', { 
-          user1: currentUserId, 
-          user2: selectedUserId 
+        socket.emit('join_room', {
+          user1: currentUserId,
+          user2: selectedUserId
         });
-        
-        console.log('🏠 Joined room between', currentUserId, 'and', selectedUserId);
+
+        ('🏠 Joined room between', currentUserId, 'and', selectedUserId);
       });
 
       socket.on('disconnect', () => {
-        console.log('❌ Disconnected from server');
         setIsConnected(false);
       });
 
@@ -139,33 +190,65 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
         setIsConnected(false);
       });
 
-      // Message handlers - IMPROVED DUPLICATE PREVENTION
+      socket.on('online_users', (users) => {
+        ('👥 Online users updated:', users);
+        setOnlineUsers(users);
+      });
+
+      // Message handlers
       socket.on('receive_message', (data) => {
-        console.log('📨 Received message:', data);
-        
+        ('📨 Received message:', data);
+
         setMessages(prev => {
           // Check for duplicates using improved logic
           if (isDuplicateMessage(data, prev)) {
-            console.log('📋 Message already exists, skipping duplicate');
+            ('📋 Message already exists, skipping duplicate');
             return prev;
           }
-          
+
           const messageId = data._id || data.messageId || generateMessageId(data);
-          const newMessage = { 
-            ...data, 
+          const newMessage = {
+            ...data,
             _id: messageId,
-            status: 'delivered' 
+            status: 'delivered'
           };
-          
+
           // Add to tracking set
           messageIdsRef.current.add(messageId);
-          
+
           return [...prev, newMessage];
         });
       });
 
+      // In-app notifications
+      socket.on('new_notification', (data) => {
+        ('🔔 Received in-app notification:', data);
+        
+        const senderName = getDisplayName(selectedUser);
+        
+        addInAppNotification({
+          from: data.from,
+          message: data.message,
+          time: data.time,
+          senderName,
+          type: 'message'
+        });
+      });
+
+      // Browser notifications
+      socket.on('browser_notification', (data) => {
+        ('🌐 Received browser notification trigger:', data);
+        
+        const senderName = getDisplayName(selectedUser);
+        
+        showBrowserNotification(
+          `New message from ${senderName}`,
+          data.message.length > 50 ? data.message.substring(0, 50) + '...' : data.message
+        );
+      });
+
       // Typing indicators
-      socket.on('user_typing', ({ from, isTyping: typing }) => {
+      socket.on('typing', ({ from, isTyping: typing }) => {
         if (from === selectedUserId) {
           setIsTyping(typing);
           if (typing) {
@@ -176,19 +259,21 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
       });
 
       // Message status updates
-      socket.on('message_saved', ({ messageId, success, error: saveError }) => {
+      socket.on('message_saved', ({ messageId, success, error: saveError, _id }) => {
+        ('💾 Message save response:', { messageId, success, saveError, _id });
+        
         if (success) {
-          setMessages(prev => 
-            prev.map(msg => 
+          setMessages(prev =>
+            prev.map(msg =>
               (msg._id === messageId || msg.messageId === messageId)
-                ? { ...msg, status: 'sent' }
+                ? { ...msg, status: 'sent', _id: _id || msg._id }
                 : msg
             )
           );
         } else {
           console.error('❌ Message save failed:', saveError);
-          setMessages(prev => 
-            prev.map(msg => 
+          setMessages(prev =>
+            prev.map(msg =>
               (msg._id === messageId || msg.messageId === messageId)
                 ? { ...msg, status: 'failed' }
                 : msg
@@ -199,12 +284,12 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
 
       // User status updates
       socket.on('user_status', ({ userId, status }) => {
-        console.log(`👤 User ${userId} is now ${status}`);
+        (`👤 User ${userId} is now ${status}`);
       });
 
       // Debug handlers
       socket.on('debug_room_response', (info) => {
-        console.log('🔍 Room debug info:', info);
+        ('🔍 Room debug info:', info);
       });
 
       // Fetch initial messages
@@ -212,8 +297,13 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
 
       // Cleanup function
       return () => {
-        console.log('🧹 Cleaning up socket connection');
+        ('🧹 Cleaning up socket connection');
         if (socket) {
+          // Leave room before disconnecting
+          socket.emit('leave_room', {
+            user1: currentUserId,
+            user2: selectedUserId
+          });
           socket.disconnect();
         }
         // Clear message tracking
@@ -234,27 +324,27 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
     try {
       setLoading(true);
       setError('');
-      
+
       const currentUserId = getUserId(currentUser);
       const selectedUserId = getUserId(selectedUser);
       
-      console.log('📥 Fetching messages between:', currentUserId, 'and', selectedUserId);
-      
+      ('📥 Fetching messages between:', currentUserId, 'and', selectedUserId);
+
       const response = await fetch(`${API_BASE}/messages/${currentUserId}/${selectedUserId}`);
       const data = await response.json();
 
       if (response.ok) {
         const messagesArray = Array.isArray(data) ? data : [];
-        
+
         // Clear and rebuild message tracking
         messageIdsRef.current.clear();
         messagesArray.forEach(msg => {
           const id = msg._id || msg.messageId || generateMessageId(msg);
           messageIdsRef.current.add(id);
         });
-        
+
         setMessages(messagesArray);
-        console.log('📥 Fetched', messagesArray.length, 'messages');
+        ('📥 Fetched', messagesArray.length, 'messages');
       } else {
         setError(data.error || 'Failed to fetch messages');
         console.error('❌ Fetch error:', data);
@@ -282,7 +372,7 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
       messageId
     };
 
-    console.log('📤 Sending message:', messageData);
+    ('📤 Sending message:', messageData);
 
     // Optimistically add message to UI
     const tempMessage = {
@@ -290,51 +380,48 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
       _id: messageId,
       status: 'sending'
     };
-    
+
     // Add to tracking set to prevent duplicates
     messageIdsRef.current.add(messageId);
-    
+
     setMessages(prev => [...prev, tempMessage]);
     setNewMessage('');
     setError('');
 
-    // Send via Socket.IO (real-time) - ONLY use socket, not both
+    // Send via Socket.IO
     socketRef.current.emit('send_message', messageData);
 
-    // Remove the REST API backup call to prevent duplicates
-    // The socket.io should handle the message sending
-    
     // Update status after a short delay if no response
     setTimeout(() => {
-      setMessages(prev => 
-        prev.map(msg => 
+      setMessages(prev =>
+        prev.map(msg =>
           msg._id === messageId && msg.status === 'sending'
             ? { ...msg, status: 'sent' }
             : msg
         )
       );
-    }, 1000);
+    }, 2000);
   };
 
   const handleTyping = (e) => {
     setNewMessage(e.target.value);
-    
+
     if (socketRef.current) {
       const currentUserId = getUserId(currentUser);
       const selectedUserId = getUserId(selectedUser);
-      
+
       // Send typing indicator
       socketRef.current.emit('typing', {
         from: currentUserId,
         to: selectedUserId,
         isTyping: true
       });
-      
+
       // Clear previous timeout
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
-      
+
       // Stop typing indicator after 2 seconds
       typingTimeoutRef.current = setTimeout(() => {
         socketRef.current.emit('typing', {
@@ -358,7 +445,7 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
     if (socketRef.current) {
       const currentUserId = getUserId(currentUser);
       const selectedUserId = getUserId(selectedUser);
-      
+
       socketRef.current.emit('debug_room_info', {
         user1: currentUserId,
         user2: selectedUserId
@@ -373,20 +460,20 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
 
   const getInitials = (user) => {
     if (!user) return '??';
-    
+
     if (user.name && typeof user.name === 'string') {
       return user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     }
-    
+
     if (user.username && typeof user.username === 'string') {
       return user.username.substring(0, 2).toUpperCase();
     }
-    
+
     const phone = user.phoneNumber || user.mobileNumber;
     if (phone && typeof phone === 'string') {
       return phone.slice(-2);
     }
-    
+
     return '??';
   };
 
@@ -403,7 +490,7 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
   const getMessageStatus = (message) => {
     const currentUserId = getUserId(currentUser);
     if (message.from !== currentUserId) return null;
-    
+
     switch (message.status) {
       case 'sending':
         return <Clock className="w-3 h-3 text-gray-400" />;
@@ -420,8 +507,45 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
     }
   };
 
+  const removeNotification = (notificationId) => {
+    setNotifications(prev => prev.filter(n => n.id !== notificationId));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex flex-col">
+      {/* In-app Notifications */}
+      <div className="fixed top-4 right-4 z-50 space-y-2">
+        {notifications.map((notification) => (
+          <div
+            key={notification.id}
+            className="bg-white/90 backdrop-blur-sm border border-gray-200 rounded-lg shadow-lg p-4 max-w-sm animate-slide-in-right"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center mb-1">
+                  <Bell className="w-4 h-4 text-blue-500 mr-2" />
+                  <span className="font-semibold text-sm text-gray-800">
+                    {notification.senderName}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600 break-words">
+                  {notification.message}
+                </p>
+                <span className="text-xs text-gray-400">
+                  {formatTime(notification.time)}
+                </span>
+              </div>
+              <button
+                onClick={() => removeNotification(notification.id)}
+                className="text-gray-400 hover:text-gray-600 ml-2"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* Connection Status */}
       {!isConnected && (
         <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2">
@@ -429,6 +553,27 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
             <span className="text-yellow-800 text-sm">
               🔄 Connecting to real-time chat...
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* Notification Permission Banner */}
+      {notificationPermission === 'default' && (
+        <div className="bg-blue-50 border-b border-blue-200 px-4 py-2">
+          <div className="max-w-4xl mx-auto flex items-center justify-between">
+            <span className="text-blue-800 text-sm">
+              🔔 Enable notifications to get alerts when you receive new messages
+            </span>
+            <button
+              onClick={() => {
+                Notification.requestPermission().then(permission => {
+                  setNotificationPermission(permission);
+                });
+              }}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            >
+              Enable
+            </button>
           </div>
         </div>
       )}
@@ -444,25 +589,22 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
               >
                 <ArrowLeft className="w-5 h-5 text-gray-600" />
               </button>
-              
+
               <div className="flex items-center">
                 <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mr-3 shadow-lg relative">
                   <span className="text-white font-bold text-sm">
                     {getInitials(selectedUser)}
                   </span>
                   {/* Connection indicator */}
-                  <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
-                    isConnected ? 'bg-green-500' : 'bg-gray-400'
-                  }`}></div>
+                  <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${isUserOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
                 </div>
                 <div>
                   <h2 className="font-semibold text-gray-800 text-lg">
                     {getDisplayName(selectedUser)}
                   </h2>
                   <div className="flex items-center text-sm text-gray-500">
-                    {/* <Phone className="w-3 h-3 mr-1" /> */}
                     <span>{getDisplayPhone(selectedUser)}</span>
-                    {isConnected && (
+                    {isUserOnline && (
                       <span className="ml-2 text-green-600">• Online</span>
                     )}
                   </div>
@@ -471,12 +613,18 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
             </div>
 
             <div className="flex items-center space-x-2">
-              <button 
+              <div className="flex items-center text-sm text-gray-500">
+                {notificationPermission === 'granted' ? (
+                  <Bell className="w-4 h-4 text-green-500" />
+                ) : (
+                  <BellOff className="w-4 h-4 text-gray-400" />
+                )}
+              </div>
+              <button
                 onClick={debugRoom}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200 text-gray-500"
                 title="Debug Room Info"
               >
-                {/* <MoreVertical className="w-5 h-5" /> */}
               </button>
             </div>
           </div>
@@ -496,7 +644,7 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-center">
             <span className="text-red-700 text-sm">{error}</span>
-            <button 
+            <button
               onClick={() => setError('')}
               className="ml-2 text-red-500 hover:text-red-700"
             >
@@ -524,24 +672,21 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
               return (
                 <div
                   key={message._id || message.id}
-                  className={`flex ${
-                    message.from === currentUserId ? 'justify-end' : 'justify-start'
-                  }`}
+                  className={`flex ${message.from === currentUserId ? 'justify-end' : 'justify-start'
+                    }`}
                 >
                   <div
-                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl shadow-sm ${
-                      message.from === currentUserId
+                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl shadow-sm ${message.from === currentUserId
                         ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-br-sm'
                         : 'bg-white/80 backdrop-blur-sm text-gray-800 rounded-bl-sm border border-white/20'
-                    }`}
+                      }`}
                   >
                     <p className="text-sm leading-relaxed break-words">
                       {message.message}
                     </p>
                     <div
-                      className={`flex items-center justify-end mt-1 space-x-1 ${
-                        message.from === currentUserId ? 'text-blue-100' : 'text-gray-500'
-                      }`}
+                      className={`flex items-center justify-end mt-1 space-x-1 ${message.from === currentUserId ? 'text-blue-100' : 'text-gray-500'
+                        }`}
                     >
                       <span className="text-xs">
                         {formatTime(message.time || message.timestamp)}
@@ -553,7 +698,7 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
               );
             })
           )}
-          
+
           {isTyping && (
             <div className="flex justify-start">
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm border border-white/20">
@@ -566,7 +711,7 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
             </div>
           )}
         </div>
-        
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -575,9 +720,9 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center space-x-3">
             <button className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200">
-              {/* <Paperclip className="w-5 h-5 text-gray-500" /> */}
+              
             </button>
-            
+
             <div className="flex-1 relative">
               <input
                 ref={inputRef}
@@ -590,10 +735,10 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
                 disabled={loading || !isConnected}
               />
               <button className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full transition-colors duration-200">
-                {/* <Smile className="w-5 h-5 text-gray-400" /> */}
+
               </button>
             </div>
-            
+
             <button
               onClick={handleSendMessage}
               disabled={!newMessage.trim() || loading || !isConnected}
@@ -604,6 +749,23 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
           </div>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes slide-in-right {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
+        .animate-slide-in-right {
+          animation: slide-in-right 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 };
