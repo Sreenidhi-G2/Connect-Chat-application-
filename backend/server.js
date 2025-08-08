@@ -18,6 +18,7 @@ app.use(cors({
   origin: [
     "http://localhost:5173",                 
     "https://connect-chat-application-mu.vercel.app", 
+    "http://connect-chat-application.s3-website.ap-south-1.amazonaws.com"
   ],
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true

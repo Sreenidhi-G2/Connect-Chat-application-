@@ -27,8 +27,8 @@ const ChatBox = ({ currentUser, selectedUser, onBack }) => {
   const [notifications, setNotifications] = useState([]);
   const [notificationPermission, setNotificationPermission] = useState(Notification.permission);
 
-  const API_BASE = 'http://localhost:5000/api';
-  const SOCKET_URL = 'http://localhost:5000/';
+  const API_BASE = 'http://35.154.146.220:8000/api';
+  const SOCKET_URL = 'http://35.154.146.220:8000';
 
   // Request notification permission on component mount
   useEffect(() => {

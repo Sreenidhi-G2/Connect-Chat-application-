@@ -30,8 +30,8 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
   const [onlineUsers, setOnlineUsers] = useState([]);
   
   const socketRef = useRef(null);
-  const SOCKET_URL = 'http://localhost:5000/';
-  const API_BASE = 'http://localhost:5000/api';
+  const SOCKET_URL = 'http://35.154.146.220:8000';
+  const API_BASE = 'http://35.154.146.220:8000/api';
 
   // Configure axios instance
   const api = axios.create({
