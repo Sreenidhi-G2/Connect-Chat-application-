@@ -51,14 +51,14 @@ const Login = ({ onLoginSuccess }) => {
 
     try {
       // Send the Google ID token to your backend
-      const backendResponse = await fetch('https://connect-chat-application.onrender.com/api/google-signin', {
+      const backendResponse = await fetch('http://35.154.146.220:8000/api/google-signin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           idToken: response.credential,
-        }),
+        }), 
       });
 
       const data = await backendResponse.json();
@@ -148,4 +148,4 @@ const Login = ({ onLoginSuccess }) => {
   );
 };
 
-export default Login;
+export default Login; 
