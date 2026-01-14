@@ -3,9 +3,11 @@ const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
 const connectDB = require("./config/db");
-const messageRoutes = require("./routes/Messageroutes");  
+const messageRoutes = require("./routes/Messageroutes");
 const initSocket = require("./Socket/index");
 const authRoutes = require('./routes/Signinroutes');
+const ProfileRoutes = require("./routes/Profileroutes");
+const MatchRoutes = require("./routes/Matchroutes");
 
 require("dotenv").config();
 const app = express();
@@ -16,8 +18,8 @@ app.use((req, res, next) => {
 });
 app.use(cors({
   origin: [
-    "http://localhost:5173",                 
-    "https://connect-chat-application-mu.vercel.app", 
+    "http://localhost:5173",
+    "https://connect-chat-application-mu.vercel.app",
     "http://connect-chat-application.s3-website.ap-south-1.amazonaws.com"
   ],
   methods: ["GET", "POST", "PUT", "DELETE"],
@@ -30,14 +32,15 @@ connectDB();
 const userRoutes = require("./routes/UserRoutes");
 app.use(express.json());
 app.use("/api/messages", messageRoutes);
-app.use("/api", authRoutes);           
-app.use("/api", userRoutes); 
-
+app.use("/api", authRoutes);
+app.use("/api", userRoutes);
+app.use("/api", ProfileRoutes);
+app.use("/api", MatchRoutes);
 
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ["https://connect-chat-application-mu.vercel.app","http://localhost:5000"],
+    origin: ["https://connect-chat-application-mu.vercel.app", "http://localhost:5000"],
     methods: ["GET", "POST"],
   },
 });

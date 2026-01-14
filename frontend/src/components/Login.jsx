@@ -112,17 +112,17 @@ const Login = ({ onLoginSuccess }) => {
           <div className="space-y-4 pt-4">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <span className="text-2xl">🎯</span>
+                <span className="text-2xl"></span>
               </div>
               <div>
                 <h3 className="font-semibold text-gray-800">Match by Interests</h3>
                 <p className="text-sm text-gray-600">Connect with people who love what you love</p>
               </div>
-            </div>
+            </div>    
             
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                <span className="text-2xl">💬</span>
+                <span className="text-2xl"></span>
               </div>
               <div>
                 <h3 className="font-semibold text-gray-800">Start Conversations</h3>
@@ -132,7 +132,7 @@ const Login = ({ onLoginSuccess }) => {
             
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-pink-100 rounded-full flex items-center justify-center">
-                <span className="text-2xl">✨</span>
+                <span className="text-2xl"></span>
               </div>
               <div>
                 <h3 className="font-semibold text-gray-800">Genuine Connections</h3>
