@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Users, 
-  Search, 
-  MessageCircle, 
-  LogOut, 
-  User, 
+import {
+  Users,
+  Search,
+  MessageCircle,
+  LogOut,
+  User,
   Phone,
   Loader2,
   AlertCircle,
@@ -21,17 +21,17 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
   // Notification states
   const [notifications, setNotifications] = useState([]);
   const [unreadCounts, setUnreadCounts] = useState(new Map());
   const [isConnected, setIsConnected] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState(Notification.permission);
   const [onlineUsers, setOnlineUsers] = useState([]);
-  
+
   const socketRef = useRef(null);
-  const SOCKET_URL = 'http://35.154.146.220:8000';
-  const API_BASE = 'http://35.154.146.220:8000/api';
+  const SOCKET_URL = 'http://localhost:8000';
+  const API_BASE = 'http://localhost:8000/api';
 
   // Configure axios instance
   const api = axios.create({
@@ -75,7 +75,7 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
 
       // Connection handlers
       socket.on('connect', () => {
-    
+
         setIsConnected(true);
         setError('');
 
@@ -101,11 +101,11 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
       // Listen for new notifications
       socket.on('new_notification', (data) => {
         ('🔔 UserList received notification:', data);
-        
+
         const senderId = data.from;
         const senderUser = users.find(u => getUserId(u) === senderId);
         const senderName = senderUser ? getDisplayName(senderUser) : 'Unknown User';
-        
+
         // Add to toast notifications
         addInAppNotification({
           from: senderId,
@@ -126,11 +126,11 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
 
       // Browser notifications
       socket.on('browser_notification', (data) => {
-        
+
         const senderId = data.from;
         const senderUser = users.find(u => getUserId(u) === senderId);
         const senderName = senderUser ? getDisplayName(senderUser) : 'Unknown User';
-        
+
         showBrowserNotification(
           `New message from ${senderName}`,
           data.message.length > 50 ? data.message.substring(0, 50) + '...' : data.message
@@ -156,7 +156,7 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
         const name = user.name || user.username || '';
         const phone = user.phoneNumber || user.mobileNumber || '';
         return name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-               phone.includes(searchTerm);
+          phone.includes(searchTerm);
       });
       setFilteredUsers(filtered);
     } else {
@@ -219,17 +219,17 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
     try {
       setLoading(true);
       setError('');
-      
+
       ('Fetching users from:', `${API_BASE}/allusers`);
-      
+
       const response = await api.get('/allusers');
-      
+
       ('Response status:', response.status);
       ('Response data:', response.data);
 
       if (response.data.success) {
         // Filter out current user from the list
-        const otherUsers = (response.data.users || []).filter(user => 
+        const otherUsers = (response.data.users || []).filter(user =>
           user.id !== currentUser?.id && user._id !== currentUser?.id
         );
         ('Filtered users:', otherUsers);
@@ -245,8 +245,8 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
       console.error('API Error:', err);
       if (err.response) {
         // Server responded with error status
-        const errorMessage = err.response.data?.message || 
-                            `HTTP ${err.response.status}: Failed to fetch users`;
+        const errorMessage = err.response.data?.message ||
+          `HTTP ${err.response.status}: Failed to fetch users`;
         setError(errorMessage);
       } else if (err.request) {
         // Network error
@@ -265,12 +265,12 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
     if (name && typeof name === 'string') {
       return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     }
-    
+
     const phone = user.phoneNumber || user.mobileNumber;
     if (phone && typeof phone === 'string') {
       return phone.slice(-2);
     }
-    
+
     return '??';
   };
 
@@ -303,7 +303,7 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
 
   const handleUserSelect = (user) => {
     const userId = getUserId(user);
-    
+
     // Clear unread count for this user when selecting them
     setUnreadCounts(prev => {
       const newCounts = new Map(prev);
@@ -313,7 +313,7 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
 
     // Remove any notifications from this user
     setNotifications(prev => prev.filter(n => n.from !== userId));
-    
+
     onSelectUser(user);
   };
 
@@ -423,7 +423,7 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
                 <p className="text-gray-600 text-sm">Choose someone to chat with</p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               <div className="hidden sm:flex items-center bg-gray-100 rounded-full px-4 py-2">
                 <User className="w-4 h-4 text-gray-500 mr-2" />
@@ -435,7 +435,7 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
               <button
                 onClick={async () => {
                   ('🔔 Bell icon clicked, current permission:', notificationPermission);
-                  
+
                   // Check if Notification API is supported
                   if (!('Notification' in window)) {
                     console.error('❌ This browser does not support notifications');
@@ -451,11 +451,11 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
 
                   if (notificationPermission === 'default') {
                     ('🔔 Requesting notification permission...');
-                    
+
                     try {
                       // Use both callback and promise approach for better compatibility
                       let permission;
-                      
+
                       if (Notification.requestPermission.length === 0) {
                         // Modern promise-based approach
                         permission = await Notification.requestPermission();
@@ -465,10 +465,10 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
                           Notification.requestPermission(resolve);
                         });
                       }
-                      
+
                       ('✅ Permission result:', permission);
                       setNotificationPermission(permission);
-                      
+
                       if (permission === 'granted') {
                         addInAppNotification({
                           from: 'system',
@@ -477,7 +477,7 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
                           senderName: 'System',
                           type: 'system'
                         });
-                        
+
                         // Test notification
                         setTimeout(() => {
                           new Notification('Test Notification', {
@@ -522,19 +522,18 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
                     });
                   }
                 }}
-                className={`flex items-center text-sm p-2 rounded-full transition-all duration-200 ${
-                  notificationPermission === 'granted' 
-                    ? 'text-green-500 hover:bg-green-50' 
+                className={`flex items-center text-sm p-2 rounded-full transition-all duration-200 ${notificationPermission === 'granted'
+                    ? 'text-green-500 hover:bg-green-50'
                     : notificationPermission === 'denied'
-                    ? 'text-red-500 hover:bg-red-50'
-                    : 'text-gray-500 hover:bg-blue-50 hover:text-blue-600'
-                }`}
+                      ? 'text-red-500 hover:bg-red-50'
+                      : 'text-gray-500 hover:bg-blue-50 hover:text-blue-600'
+                  }`}
                 title={
-                  notificationPermission === 'granted' 
-                    ? 'Notifications enabled' 
+                  notificationPermission === 'granted'
+                    ? 'Notifications enabled'
                     : notificationPermission === 'denied'
-                    ? 'Notifications blocked - click for help'
-                    : 'Click to enable notifications'
+                      ? 'Notifications blocked - click for help'
+                      : 'Click to enable notifications'
                 }
               >
                 {notificationPermission === 'granted' ? (
@@ -543,7 +542,7 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
                   <BellOff className="w-4 h-4" />
                 )}
               </button>
-              
+
               <button
                 onClick={onLogout}
                 className="flex items-center bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-full transition-all duration-200 transform hover:scale-105 shadow-lg"
@@ -602,8 +601,8 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
               {searchTerm ? 'No users found' : 'No users available'}
             </h3>
             <p className="text-gray-500">
-              {searchTerm 
-                ? 'Try adjusting your search terms' 
+              {searchTerm
+                ? 'Try adjusting your search terms'
                 : 'Check back later for available users'}
             </p>
           </div>
@@ -612,7 +611,7 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
             {filteredUsers.map((user) => {
               const unreadCount = getUserUnreadCount(user);
               const isOnline = isUserOnline(user);
-              
+
               return (
                 <div
                   key={user.id || user._id}
@@ -634,11 +633,11 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
                       {/* Online indicator */}
                       <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
                     </div>
-                    
+
                     <h3 className="font-semibold text-gray-800 text-lg mb-2 group-hover:text-blue-600 transition-colors">
                       {getDisplayName(user)}
                     </h3>
-                    
+
                     <div className="flex items-center justify-center text-gray-600 mb-2">
                       <Phone className="w-4 h-4 mr-2" />
                       <span className="text-sm font-medium">{getDisplayPhone(user)}</span>
@@ -649,7 +648,7 @@ const UserList = ({ currentUser, onSelectUser, onLogout }) => {
                         • Online
                       </div>
                     )}
-                    
+
                     <div className="flex items-center justify-center bg-blue-50 text-blue-600 px-4 py-2 rounded-full text-sm font-medium group-hover:bg-blue-100 transition-colors">
                       <MessageCircle className="w-4 h-4 mr-2" />
                       {unreadCount > 0 ? `${unreadCount} New Message${unreadCount > 1 ? 's' : ''}` : 'Start Chat'}
