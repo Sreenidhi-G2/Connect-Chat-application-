@@ -6,9 +6,9 @@ exports.createOrUpdateProfile = async (req,res) =>
     try {
 
         const userId = req.user.id;
-        const {name,bio, intrests,hobbies,profileImage} = req.body;
+        const {name,bio, interests,hobbies,profileImage, Profession } = req.body;
 
-        if(!name || !intrests || !hobbies)
+        if(!name || !interests || !hobbies || !Profession)
         {
             return res.status(400).json({message:"Required Fields missing"});
         }
@@ -20,8 +20,9 @@ exports.createOrUpdateProfile = async (req,res) =>
         {
             profile.name = name;
             profile.bio = bio;
-            profile.interests = intrests;
+            profile.interests = interests;
             profile.hobbies = hobbies;
+            profile.Profession = Profession;
             profile.profileImage = profileImage;
             await profile.save();
         }
@@ -31,9 +32,10 @@ exports.createOrUpdateProfile = async (req,res) =>
                 userId,
                 name,
                 bio,
-                intrests,
+                interests,
                 hobbies,
-                profileImage
+                profileImage,
+                Profession
 
             });
         }

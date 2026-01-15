@@ -30,6 +30,11 @@ const ProfileSchema = new mongoose.Schema(
       required: true
     },
 
+    Profession :{
+      type : [String],
+      required :true
+    },
+
     profileImage: {
       type: String
     }

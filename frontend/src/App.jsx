@@ -1,9 +1,12 @@
+
+
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import Login from './components/Login';
-import ProfileSetup from './components/Profilesetup';
-import UserList from './components/UserList';
-import ChatBox from './components/Chatbox';
+import Login from '../src/components/Login';
+import ProfileSetup from '../src/components/Profilesetup';
+import MatchesPage from '../src/components/MatchPage';
+import UserList from '../src/components/UserList';
+import ChatBox from '../src/components/Chatbox';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, currentUser }) => {
@@ -90,7 +93,7 @@ const AppContent = () => {
         
         setCurrentUser(userData);
         localStorage.setItem('currentUser', JSON.stringify(userData));
-        navigate('/users');
+        navigate('/matches');
       } else {
         console.error('Failed to save profile');
         alert('Failed to save profile. Please try again.');
@@ -129,7 +132,7 @@ const AppContent = () => {
         element={
           currentUser ? (
             currentUser.profileCompleted ? (
-              <Navigate to="/users" replace />
+              <Navigate to="/matches" replace />
             ) : (
               <Navigate to="/setup-profile" replace />
             )
@@ -148,13 +151,26 @@ const AppContent = () => {
         element={
           <ProtectedRoute currentUser={currentUser}>
             {currentUser?.profileCompleted ? (
-              <Navigate to="/users" replace />
+              <Navigate to="/matches" replace />
             ) : (
               <ProfileSetup 
                 onProfileComplete={handleProfileComplete}
               />
             )}
           </ProtectedRoute>
+        } 
+      />
+
+      {/* Matches Page Route - Requires completed profile */}
+      <Route 
+        path="/matches" 
+        element={
+          <ProfileRequiredRoute currentUser={currentUser}>
+            <MatchesPage 
+              currentUser={currentUser}
+              onLogout={handleLogout}
+            />
+          </ProfileRequiredRoute>
         } 
       />
 
@@ -194,7 +210,7 @@ const AppContent = () => {
         element={
           currentUser ? (
             currentUser.profileCompleted ? (
-              <Navigate to="/users" replace />
+              <Navigate to="/matches" replace />
             ) : (
               <Navigate to="/setup-profile" replace />
             )
@@ -213,10 +229,10 @@ const AppContent = () => {
               <h1 className="text-3xl font-bold text-gray-800 mb-4">404 - Page Not Found</h1>
               <p className="text-gray-600 mb-6">The page you're looking for doesn't exist.</p>
               <button 
-                onClick={() => navigate(currentUser ? (currentUser.profileCompleted ? '/users' : '/setup-profile') : '/login')}
+                onClick={() => navigate(currentUser ? (currentUser.profileCompleted ? '/matches' : '/setup-profile') : '/login')}
                 className="px-6 py-3 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
               >
-                Go {currentUser ? (currentUser.profileCompleted ? 'to Users' : 'to Profile Setup') : 'to Login'}
+                Go {currentUser ? (currentUser.profileCompleted ? 'to Matches' : 'to Profile Setup') : 'to Login'}
               </button>
             </div>
           </div>

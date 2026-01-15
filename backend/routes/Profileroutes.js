@@ -7,7 +7,7 @@ const {
     getMyProfile,
 } = require("../controllers/ProfileController")
 
-router.post("/", verifyToken, createOrUpdateProfile);
+router.post("/createProfile", verifyToken, createOrUpdateProfile);
 
 router.get("/me ", verifyToken, getMyProfile);
 

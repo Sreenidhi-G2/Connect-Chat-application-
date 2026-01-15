@@ -4,7 +4,7 @@ const router = express.Router();
 const { getMatches } = require("../controllers/MatchController");
 const { verifyToken } = require("../controllers/SignInContoller");
 
-router.get("/", verifyToken, getMatches);
+router.get("/getmatch", verifyToken, getMatches);
 
 
 module.exports = router;
