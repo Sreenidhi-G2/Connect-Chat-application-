@@ -54,17 +54,17 @@ const AppContent = () => {
     const userData = {
       ...user,
       token: token,
-      profileCompleted: user.profileCompleted || false
+      profileCompleted: user.onboardingcompleted || false // Map backend field to frontend field
     };
     
     setCurrentUser(userData);
     localStorage.setItem('currentUser', JSON.stringify(userData));
     
-    // Redirect to profile setup if profile not completed, otherwise to users list
-    if (!userData.profileCompleted) {
-      navigate('/setup-profile');
+    // Redirect based on onboarding status
+    if (userData.profileCompleted) {
+      navigate('/matches');
     } else {
-      navigate('/users');
+      navigate('/setup-profile');
     }
   };
 
@@ -88,7 +88,8 @@ const AppContent = () => {
         const userData = {
           ...currentUser,
           ...updatedUser,
-          profileCompleted: true
+          profileCompleted: true,
+          onboardingcompleted: true // Also update the backend field name
         };
         
         setCurrentUser(userData);

@@ -7,6 +7,6 @@ const { verifyToken } = require("../controllers/SignInContoller");
 router.get("/getmatch", verifyToken, getMatches);
 
 
-module.exports = router;
+module.exports = router;    
 
 

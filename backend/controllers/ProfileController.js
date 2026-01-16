@@ -41,7 +41,7 @@ exports.createOrUpdateProfile = async (req,res) =>
         }
 
         await User.findByIdAndUpdate(userId, {
-            profileCompleted : true
+            onboardingCompleted : true
         });
 
         res.status(200).json(profile);
