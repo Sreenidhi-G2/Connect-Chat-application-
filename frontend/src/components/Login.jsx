@@ -203,27 +203,7 @@ const Login = ({ onLoginSuccess }) => {
       </div>
 
       {/* CSS Animations */}
-      <style jsx>{`
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-5px); }
-          75% { transform: translateX(5px); }
-        }
-
-        @keyframes bounce-in {
-          0% { transform: scale(0.8); opacity: 0; }
-          50% { transform: scale(1.05); }
-          100% { transform: scale(1); opacity: 1; }
-        }
-
-        .animate-shake {
-          animation: shake 0.5s ease-in-out;
-        }
-
-        .animate-bounce-in {
-          animation: bounce-in 0.6s ease-out;
-        }
-      `}</style>
+      
     </div>
   );
 };
