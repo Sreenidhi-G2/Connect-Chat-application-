@@ -8,6 +8,7 @@ const initSocket = require("./Socket/index");
 const authRoutes = require('./routes/Signinroutes');
 const ProfileRoutes = require("./routes/Profileroutes");
 const MatchRoutes = require("./routes/Matchroutes");
+const airChatRoutes = require("./routes/aiChatRoutes");
 
 require("dotenv").config();
 const app = express();
@@ -36,6 +37,7 @@ app.use("/api", authRoutes);
 app.use("/api", userRoutes);
 app.use("/api", ProfileRoutes);
 app.use("/api", MatchRoutes);
+app.use("/api/ai", airChatRoutes);
 
 const server = http.createServer(app);
 const io = new Server(server, {

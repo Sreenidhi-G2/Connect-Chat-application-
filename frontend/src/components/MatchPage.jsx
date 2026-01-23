@@ -325,9 +325,7 @@ const MatchesPage = ({ currentUser, onLogout }) => {
                         >
                           <MessageCircle className="w-5 h-5" />
                         </button>
-                        <button className="px-4 py-3 border-2 border-teal-300 text-teal-700 rounded-xl hover:bg-teal-50 transition-colors">
-                          <Heart className="w-5 h-5" />
-                        </button>
+                        
                       </div>
                     </div>
                   </div>
