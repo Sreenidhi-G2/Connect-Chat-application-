@@ -5,14 +5,15 @@ exports.chatwithAI = async (req, res) => {
 
     try {
         const { message } = req.body;
+        const userId = req.user.id;
 
-        const model = process.env.REPLICATE_MODEL_ID;
+        const model = process.env.MODEL_VERSION;
 
         if (!message) {
             return res.status(400).json({ error: "Message is required " });
         }
 
-        const propmt = `You are a friendly, empathetic AI friend. You talk casually, supportive, and human - like. Never sound robotic.User message: "${message}"
+        const prompt = `You are a friendly, empathetic AI friend. You talk casually, supportive, and human - like. Never sound robotic.User message: "${message}"
         AI response:`;
 
         await AiMessage.create({
