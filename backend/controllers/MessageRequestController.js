@@ -45,16 +45,35 @@ exports.SendRequest = async (req, res) => {
                 return res.status(403).json({ message: "Unauthorized" });
             }
 
+            if (request.status !== "PENDING") {
+                return res.status(400).json({ message: "Request already responded to" });
+            }
+
             request.status = status;
             await request.save();
 
             let chatRoom = null;
 
+
+
             if (status === "ACCEPTED") {
-                chatRoom = await ChatRoom.create({
-                    users: [request.senderId, request.receiverId]
+
+                await Friendship.create({
+                    sender: request.senderId,
+                    receiver: request.receiverId,
                 });
+
+                chatRoom = await ChatRoom.findOneAndUpdate(
+                    {
+                        users: { $all: [request.senderId, request.receiverId] },
+                    },
+                    {
+                        users: [request.senderId, request.receiverId],
+                    },
+                    { upsert: true, new: true }
+                );
             }
+
 
             res.status(200).json({ request, chatRoom });
 
