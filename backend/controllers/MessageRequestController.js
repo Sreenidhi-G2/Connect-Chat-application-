@@ -1,6 +1,7 @@
 const MessageRequest = require("../models/MessageRequest");
 const ChatRoom = require("../models/ChatRoom");
 
+
 exports.SendRequest = async (req, res) => {
     try {
 
@@ -53,8 +54,6 @@ exports.SendRequest = async (req, res) => {
             await request.save();
 
             let chatRoom = null;
-
-
 
             if (status === "ACCEPTED") {
 
