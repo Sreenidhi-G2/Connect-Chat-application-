@@ -17,7 +17,7 @@ The project is open-source and aims to provide a simple yet powerful chat soluti
 ---
 
 ## 🛠️ Tech Stack
-- **Frontend**: React.js, Tailwind CSS
+- **Frontend**:Please Write Your Own Frontend
 - **Backend**: Node.js, Express.js
 - **Database**: MongoDB
 - **Real-time Engine**: Socket.IO
