@@ -5,12 +5,20 @@ const { Server } = require("socket.io");
 const connectDB = require("./config/db");
 const messageRoutes = require("./routes/Messageroutes");
 const initSocket = require("./Socket/index");
-const authRoutes = require('./routes/Signinroutes');
+
 const ProfileRoutes = require("./routes/Profileroutes");
 const MatchRoutes = require("./routes/Matchroutes");
-const aiChatRoutes = require("./routes/aiChatRoutes");
+
 
 require("dotenv").config();
+const authRoutes = require('./routes/Signinroutes');
+const aiChatRoutes = require("./routes/aiChatRoutes");
+
+
+
+
+
+
 const app = express();
 app.use((req, res, next) => {
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
@@ -31,6 +39,7 @@ connectDB();
 
 
 const userRoutes = require("./routes/UserRoutes");
+const { log } = require("console");
 app.use(express.json());
 app.use("/api/messages", messageRoutes);
 app.use("/api", authRoutes);

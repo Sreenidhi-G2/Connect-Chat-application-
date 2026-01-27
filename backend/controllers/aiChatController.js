@@ -1,4 +1,4 @@
-const replicate = require("../config/LLM");
+const Llamma = require("../config/LLM");
 const AiMessage = require("../models/AiMessage");
 
 exports.chatwithAI = async (req, res) => {
@@ -22,28 +22,28 @@ exports.chatwithAI = async (req, res) => {
             content: message,
         });
 
-        const history = await AiMessage.find({ userId })
-            .sort({ createdAt: -1 })
-            .limit(20)
-            .lean();
 
 
-
-        const output = await replicate.run(
+        const completion = await Llamma.chat.completions.create({
             model,
-            {
-                input: {
-                    prompt,
-                    max_tokens: 300,
-                    temperature: 0.7,
-                    top_p: 0.9,
+            messages: [
+                {
+                    role: "system",
+                    content: prompt
+                },
+                {
+                    role: "user",
+                    content: message,
                 }
-            }
+            ],
+            max_tokens: 300,
+            temperature: 0.7,
+            top_p: 0.9,
+
+        }
         );
 
-
-
-        const aiReply = Array.isArray(output) ? output.join("") : output;
+        const aiReply = completion.choices[0].message.content;
 
         await AiMessage.create({
             userId,
@@ -51,7 +51,12 @@ exports.chatwithAI = async (req, res) => {
             content: aiReply,
         });
 
-        res.status(200).json({ success: true, reply: aiReply.trim() });
+        res.status(200).json({
+            success: true,
+            reply: aiReply,
+            model: completion.model,
+            usage: completion.usage,
+        });
 
 
 
@@ -63,13 +68,13 @@ exports.chatwithAI = async (req, res) => {
 }
 
 exports.getAiChatHistory = async (req, res) => {
-  try {
-    const messages = await AiMessage.find({ userId: req.user.id })
-      .sort({ createdAt: -1 })
-      .limit(20);
+    try {
+        const messages = await AiMessage.find({ userId: req.user.id })
+            .sort({ createdAt: -1 })
+            .limit(20);
 
-    res.status(200).json(messages.reverse());
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch chat history" });
-  }
+        res.status(200).json(messages.reverse());
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch chat history" });
+    }
 };

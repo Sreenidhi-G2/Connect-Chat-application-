@@ -5,7 +5,7 @@
 
 
   const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-  const JWT_SECRET = process.env.JWT_SECRET || "8f8c9e1ac48f4dbcb8c72892f15f327b4cf4e5e2960d91d1751d1b4b84723861"
+  const JWT_SECRET = process.env.JWT_SECRET;
   const JWT_EXPIRES_IN = '7d';
   
 
