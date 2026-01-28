@@ -4,8 +4,8 @@ const {chatwithAI, getAiChatHistory} = require('../controllers/aiChatController'
 const {verifyToken} = require('../controllers/SignInContoller');
 
 
-router.post('/chat', verifyToken, chatwithAI);
+router.post('/chat', verifyToken, chatwithAI); // working 
 
-router.get('/history', verifyToken, getAiChatHistory);
+router.get('/history', verifyToken, getAiChatHistory); // working 
 
-module.exports = router;
+module.exports = router;    
