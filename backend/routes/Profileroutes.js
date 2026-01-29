@@ -7,9 +7,9 @@ const {
     getMyProfile,
 } = require("../controllers/ProfileController")
 
-router.post("/createProfile", verifyToken, createOrUpdateProfile);
+router.post("/createProfile", verifyToken, createOrUpdateProfile); 
 
-router.get("/me ", verifyToken, getMyProfile);
+router.get("/me ", verifyToken, getMyProfile); // working
 
 
 module.exports = router;
