@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const http = require("http");
@@ -5,12 +6,18 @@ const { Server } = require("socket.io");
 const connectDB = require("./config/db");
 const messageRoutes = require("./routes/Messageroutes");
 const initSocket = require("./Socket/index");
-const authRoutes = require('./routes/Signinroutes');
 const ProfileRoutes = require("./routes/Profileroutes");
 const MatchRoutes = require("./routes/Matchroutes");
+const authRoutes = require('./routes/Signinroutes');
 const aiChatRoutes = require("./routes/aiChatRoutes");
+const friendRoutes = require("./routes/FriendRoutes");
+const userRoutes = require("./routes/UserRoutes");
 
-require("dotenv").config();
+
+
+
+
+
 const app = express();
 app.use((req, res, next) => {
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
@@ -30,14 +37,15 @@ app.use(cors({
 connectDB();
 
 
-const userRoutes = require("./routes/UserRoutes");
+
 app.use(express.json());
 app.use("/api/messages", messageRoutes);
-app.use("/api", authRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api", userRoutes);
 app.use("/api", ProfileRoutes);
 app.use("/api", MatchRoutes);
 app.use("/api/ai", aiChatRoutes);
+app.use("/api/friends", friendRoutes);
 
 const server = http.createServer(app);
 const io = new Server(server, {
