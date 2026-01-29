@@ -15,6 +15,6 @@ router.get('/profile', verifyToken, getProfile);
 
 
 // In your router file
-router.post('/dev-signin', devSignIn);  // Development only
+router.post('/dev-signin', devSignIn);  // Development only // Working 
 
 module.exports = router;

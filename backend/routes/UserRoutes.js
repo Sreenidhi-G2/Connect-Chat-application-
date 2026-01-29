@@ -6,8 +6,6 @@ const {verifyToken} = require('../controllers/SignInContoller');
 // Get all users (excluding current user)
 router.get('/allusers',verifyToken, getAllUsers);
 
-// Get current user info
-router.get('/me', verifyToken ,getCurrentUser);
 
 // Search users by username
 router.get('/search',verifyToken, searchUsers);

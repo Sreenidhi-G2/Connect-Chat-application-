@@ -1,4 +1,5 @@
 const Profile = require("../models/Profile");
+const { extractKeywords } = require("../utils/KeyWordExtractor");
 
 exports.getMatches = async (req, res) => {
   try {
@@ -8,6 +9,8 @@ exports.getMatches = async (req, res) => {
       return res.status(400).json({ message: "Complete profile first" });
     }
 
+    const myBioKeywords = extractKeywords(myProfile.bio || "");
+
     const matches = await Profile.aggregate([
       {
         $match: {
@@ -16,10 +19,33 @@ exports.getMatches = async (req, res) => {
       },
       {
         $addFields: {
+          interestScore: {
+            $size: { $setIntersection: ["$interests", myProfile.interests] }
+          },
+          hobbyScore: {
+            $size: { $setIntersection: ["$hobbies", myProfile.hobbies] }
+          },
+          professionScore: {
+            $size: { $setIntersection: ["$Profession", myProfile.Profession] }
+          },
+          bioScore: {
+            $size: {
+              $setIntersection: [
+                { $split: [{ $toLower: "$bio" }, " "] },
+                myBioKeywords
+              ]
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
           score: {
             $add: [
-              { $size: { $setIntersection: ["$interests", myProfile.interests] } },
-              { $size: { $setIntersection: ["$hobbies", myProfile.hobbies] } }
+              "$interestScore",
+              "$hobbyScore",
+              "$professionScore",
+              { $multiply: ["$bioScore", 0.5] }
             ]
           }
         }

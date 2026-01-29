@@ -42,7 +42,7 @@ app.use(express.json());
 app.use("/api/messages", messageRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api", userRoutes);
-app.use("/api", ProfileRoutes);
+app.use("/api/profile", ProfileRoutes);
 app.use("/api", MatchRoutes);
 app.use("/api/ai", aiChatRoutes);
 app.use("/api/friends", friendRoutes);

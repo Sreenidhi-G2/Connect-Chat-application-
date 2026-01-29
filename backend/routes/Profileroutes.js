@@ -9,7 +9,7 @@ const {
 
 router.post("/createProfile", verifyToken, createOrUpdateProfile); 
 
-router.get("/me ", verifyToken, getMyProfile); // working
+router.get("/me", verifyToken, getMyProfile); //  working
 
 
-module.exports = router;
+module.exports = router;    
