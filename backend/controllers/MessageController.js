@@ -5,10 +5,14 @@ exports.saveMessage = async (req, res) => {
     const { chatRoomId, message } = req.body;
     const senderId = req.user.id;
 
+    if(!chatRoomId || !message) {
+      return res.status(400).json({ error: "Missing Fields" });
+    }
+
     const newMessage = await Message.create({
-      chatRoom: chatRoomId,
-      sender: senderId,
-      message,
+      conversaationId: chatRoomId,
+      senderId,
+      content: message,
     });
 
     res.status(201).json(newMessage);
@@ -21,9 +25,9 @@ exports.getMessages = async (req, res) => {
   try {
     const { chatRoomId } = req.params;
 
-    const messages = await Message.find({ chatRoom: chatRoomId })
-      .populate("sender", "name email")
-      .sort({ time: 1 });
+    const messages = await Message.find({ conversationId: chatRoomId })
+      .populate("sender", "username email")
+      .sort({ createdAt: 1 });
 
     res.json(messages);
   } catch (err) {
