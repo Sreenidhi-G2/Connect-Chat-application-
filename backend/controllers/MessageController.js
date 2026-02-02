@@ -10,7 +10,7 @@ exports.saveMessage = async (req, res) => {
     }
 
     const newMessage = await Message.create({
-      conversaationId: chatRoomId,
+      conversationId: chatRoomId,
       senderId,
       content: message,
     });
@@ -26,7 +26,7 @@ exports.getMessages = async (req, res) => {
     const { chatRoomId } = req.params;
 
     const messages = await Message.find({ conversationId: chatRoomId })
-      .populate("sender", "username email")
+      .populate("senderId", "username email")
       .sort({ createdAt: 1 });
 
     res.json(messages);
@@ -34,4 +34,3 @@ exports.getMessages = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-

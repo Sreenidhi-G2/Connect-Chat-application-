@@ -120,7 +120,7 @@ const verifyToken = (req, res, next) => {
 
 const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.userId).select('-googleId');
+    const user = await User.findById(req.user.id).select('-googleId');
     res.json({
       success: true,
       user
